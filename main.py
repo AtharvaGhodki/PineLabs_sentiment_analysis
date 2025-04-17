@@ -1180,50 +1180,36 @@ def main():
                                 st.markdown("""
                                 <div class="chart-container">
                                     <h4>Competitive Trend Insights</h4>
-                                """, unsafe_allow_html=True)
-                                
-                                # Create columns for each company insight
-                                cols = st.columns(len(company_insights))
-                                
-                                # Make sure get_company_color function exists or define it
-                                # Adding a simple implementation if it's not defined elsewhere
-                                def get_company_color(company):
-                                    colors = {
-                                        'PineLabs': '#345c49',
-                                        'Razorpay': '#3366CC',
-                                        'Paytm': '#0F4A8A'
-                                    }
-                                    return colors.get(company, '#777777')
-                                    
-                                for i, insight in enumerate(company_insights):
-                                    with cols[i]:
-                                        trend_icon = "📈" if insight['Trend_Change'] > 0 else "📉" if insight['Trend_Change'] < 0 else "⟷"
-                                        trend_color = "#4CAF50" if insight['Trend_Change'] > 0 else "#F44336" if insight['Trend_Change'] < 0 else "#FFC107"
-                                        
-                                        st.markdown(f"""
-                                        <div style="background-color: {get_company_color(insight['Company'])}1A; padding: 15px; border-radius: 10px;">
-                                            <h4 style="color: {get_company_color(insight['Company'])};">{insight['Company']}</h4>
-                                            <p>{trend_icon} <b style="color: {trend_color}">
-                                            {'+' if insight['Trend_Change'] > 0 else ''}{insight['Trend_Change']:.1f}% points</b></p>
-                                            <p>First half average: {insight['First_Half']:.1f}%</p>
-                                            <p>Second half average: {insight['Second_Half']:.1f}%</p>
-                                        </div>
-                                        """, unsafe_allow_html=True)
-                                
-                                # Overall competitive positioning
-                                st.markdown(f"""
-                                <div style="margin-top: 15px;">
-                                    <p><b>{best_improvement['Company']}</b> shows the best improvement with a 
-                                    <span style="color: #4CAF50">+{best_improvement['Trend_Change']:.1f}% point</span> change.</p>
-                                    
-                                    <p><b>{worst_trend['Company']}</b> shows the worst trend with a 
-                                    <span style="color: #F44336">{worst_trend['Trend_Change']:.1f}% point</span> change.</p>
-                                    
-                                    {f"<p>Pine Labs is <b>{'improving' if pine_insight['Trend_Change'] > 0 else 'declining'}</b> at a rate of <b>{pine_insight['Trend_Change']:.1f}% points</b>.</p>" if pine_insight is not None else ""}
                                 </div>
                                 """, unsafe_allow_html=True)
+
+                            # Create columns for each company insight
+                            cols = st.columns(len(company_insights))
+
+                            # Define company color function
+                            def get_company_color(company):
+                                colors = {
+                                    'PineLabs': '#345c49',
+                                    'Razorpay': '#3366CC',
+                                    'Paytm': '#0F4A8A'
+                                }
+                                return colors.get(company, '#777777')
                                 
-                                st.markdown('</div>', unsafe_allow_html=True)
+                            # Display insights for each company in separate columns
+                            for i, insight in enumerate(company_insights):
+                                with cols[i]:
+                                    trend_icon = "📈" if insight['Trend_Change'] > 0 else "📉" if insight['Trend_Change'] < 0 else "⟷"
+                                    trend_color = "#4CAF50" if insight['Trend_Change'] > 0 else "#F44336" if insight['Trend_Change'] < 0 else "#FFC107"
+                                    
+                                    st.markdown(f"""
+                                    <div style="background-color: {get_company_color(insight['Company'])}1A; padding: 15px; border-radius: 10px;">
+                                        <h4 style="color: {get_company_color(insight['Company'])};">{insight['Company']}</h4>
+                                        <p>{trend_icon} <b style="color: {trend_color}">
+                                        {'+' if insight['Trend_Change'] > 0 else ''}{insight['Trend_Change']:.1f}% points</b></p>
+                                        <p>First half average: {insight['First_Half']:.1f}%</p>
+                                        <p>Second half average: {insight['Second_Half']:.1f}%</p>
+                                    </div>
+                                    """, unsafe_allow_html=True)
                         else:
                             st.info("Not enough data to generate comparative trends.")
                     else:
