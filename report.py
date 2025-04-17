@@ -7,9 +7,10 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
-groq_api = os.getenv("GROQ_API_KEY")
+groq_api = "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"
 openai_api="sk-proj-KXIpEZJe7gC8dNc9uv-tvG7O7Ii4-Mvm0SxGvnKTF5YdKJs8q01WRlRdNRkv9iyqczu2T_wzZfT3BlbkFJP3XKOaSIDeMOp0J3pcThLxSB9NC7pVuEZejucZEp_4rKEasnSvnHNTpHJTnrf7AO1XMNMe8U0A"
 openai.api_key = openai_api
+
 # def categorize_comment(comment):
 #     prompt = f"""
 # You are an expert at categorizing user feedback into specific problem categories.

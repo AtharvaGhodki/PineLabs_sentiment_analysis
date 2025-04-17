@@ -178,7 +178,7 @@ def get_user_replies(twitter_usr, twitter_pass, email, past_days=7, max_scrolls=
         return pd.DataFrame(columns=["review", "at", "source"])
 
 # Access environment variables
-X_api = os.getenv("X_API_KEY")
+X_api = "6d3b9ae245474bc09b0f121932a19234"
 
 def get_twitter_comments(past_days,source):
     end_date = datetime.datetime.now(datetime.timezone.utc)

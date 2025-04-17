@@ -377,7 +377,7 @@ def main():
         with col2:
             # Try to load logo with error handling
             try:
-                st.image("D:\pinelabs_sentiment_analysis\pinelabs_3.png", width=300)
+                st.image("pinelabs_3.png", width=300)
             except:
                 # Fallback to text if image fails to load
                 st.markdown("""
@@ -397,7 +397,7 @@ def main():
         # App title with animation
         st.markdown("""
         <h1 style='text-align: center; animation: slideIn 1s ease-out;'>
-            Competitive Payment Gateway Sentiment Analysis Dashboard
+            Sentimeter
         </h1>
         <style>
         @keyframes slideIn {
@@ -411,8 +411,7 @@ def main():
         st.markdown("""
         <div class="metrics-card about-section" style="animation: fadeIn 1.2s ease-in-out;">
             <h2>About this Application</h2>
-            <p>The Payment Gateway Sentiment Analysis Dashboard provides valuable insights into customer feedback across multiple channels
-            and payment processors, helping you understand customer sentiment trends and take proactive business decisions.</p>
+            <p>Real-time social media sentiment dashboard to monitor brand perception for Pine Labs and key competitors. The dashboard will analyze comments from official channels across platforms like X (Twitter), LinkedIn, YouTube, App Store, and Play Store. In pilot with X right now.</p>
             <h3>Key Features:</h3>
             <ul>
                 <li>Comparative analysis between Pine Labs, Razorpay, and Paytm</li>
@@ -440,54 +439,75 @@ def main():
                 <div class="metric-title">Select number of past days for analysis</div>
             """, unsafe_allow_html=True)
             
-            days = st.number_input("", 
-                                min_value=1, max_value=90, value=30, step=1,
+            col1, col2, col3 = st.columns([2, 1, 2])  # Adjust these numbers to change column widths
+            with col2:
+                days = st.selectbox("",
+                                options=[7, 30, 60, 90], 
+                                index=0,
                                 key="days_input",
                                 help="Select the number of days for which you want to analyze sentiment data")
             
             # Button with loading animation
-            if st.button("Perform Sentiment Analysis", key="analyze_button", 
-                        help="Click to fetch and analyze sentiment data for the selected days"):
-                with st.spinner("Fetching and analyzing data..."):
-                    # Add a progress bar for better UX
-                    progress_bar = st.progress(0)
-                    for i in range(101):
-                        # Update progress bar
-                        progress_bar.progress(i)
-                        if i == 25:
-                            st.markdown("""
-                            <div class="loading">
-                                <p>Connecting to data sources...</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        elif i == 50:
-                            st.markdown("""
-                            <div class="loading">
-                                <p>Analyzing sentiment patterns...</p>
-                            </div>
-                            """, unsafe_allow_html=True)
-                        elif i == 75:
-                            st.markdown("""
-                            <div class="loading">
-                                <p>Preparing visualization data...</p>
-                            </div>
-                            """, unsafe_allow_html=True)
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                if st.button("Perform Sentiment Analysis", key="analyze_button", 
+                            help="Click to fetch and analyze sentiment data for the selected days"):
+                    with st.spinner("Fetching and analyzing data..."):
+                        # Add a progress bar for better UX
+                        progress_bar = st.progress(0)
+                        for i in range(101):
+                            # Update progress bar
+                            progress_bar.progress(i)
+                            if i == 25:
+                                st.markdown("""
+                                <div class="loading">
+                                    <p>Connecting to data sources...</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            elif i == 50:
+                                st.markdown("""
+                                <div class="loading">
+                                    <p>Analyzing sentiment patterns...</p>
+                                </div>
+                                """, unsafe_allow_html=True)
+                            elif i == 75:
+                                st.markdown("""
+                                <div class="loading">
+                                    <p>Preparing visualization data...</p>
+                                </div>
+                                """, unsafe_allow_html=True)
                             
-                        import time
-                        time.sleep(0.02)  # Simulate processing time
-                        
-                    try:
-                        # Get sentiment data
-                        st.session_state.data = get_all_replies_with_sentiment(days)
-                        st.session_state.page = 'dashboard'
-                        st.rerun()
-                    except Exception as e:
-                        st.error(f"Error fetching data: {str(e)}")
-            st.markdown('</div>', unsafe_allow_html=True)
+                            import time
+                            time.sleep(0.02)  # Simulate processing time
+                            
+                        try:
+                            # Get sentiment data
+                            st.session_state.data = get_all_replies_with_sentiment(days)
+                            st.session_state.page = 'dashboard'
+                            st.rerun()
+                        except Exception as e:
+                            st.error(f"Error fetching data: {str(e)}")
+                st.markdown('</div>', unsafe_allow_html=True)
     
     # Dashboard page
     elif st.session_state.page == 'dashboard':
-        # Create a top navigation bar
+        st.info("ℹ️ Need help understanding the metrics and charts? See the **Dashboard Guide** in the sidebar 👈")
+        # ✅ Dashboard-only sidebar
+        with st.sidebar:
+            st.header("📘 Dashboard Guide")
+            st.markdown("""
+            - **Total Comments**: Number of user comments collected in the selected time frame.
+            - **Sentiment Distribution**: Percentages of positive, neutral, and negative comments.
+            - **Average Sentiment Score**: A 0–1 score indicating overall positivity.
+            - **Positive vs Negative Ratio**: Ratio of positive comments to negative ones (>1 means more positive).
+            - **Company Comparison**: Side‑by‑side sentiment metrics for PineLabs, Razorpay, and Paytm.
+            - **Sentiment Trend Over Time**: How sentiment shifts day‑by‑day (or week/month) in the period.
+            - **Top Reviews**: Highlights of the best and worst PineLabs reviews.
+            - **Word Cloud**: Most common words in negative feedback to spot pain‑points.
+            - **Day of Week Analysis**: Which weekdays/weekends see better or worse sentiment.
+            - **Competitor Trend**: Comparative positive‑sentiment trend lines for all companies.
+            """)
+            # Create a top navigation bar
         col1, col2, col3, col4 = st.columns([1, 3, 3, 1])
         with col1:
             if st.button("← Back", help="Return to the information page"):
@@ -518,7 +538,7 @@ def main():
         # Title with animation
         st.markdown("""
         <h1 style='text-align: center; animation: fadeDown 0.8s ease-out;'>
-            Payment Gateway Sentiment Analysis Dashboard
+            Sentimeter Dashboard
         </h1>
         <style>
         @keyframes fadeDown {
