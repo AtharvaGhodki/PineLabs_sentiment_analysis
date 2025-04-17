@@ -1,5 +1,3 @@
-from google_play_scraper import reviews_all
-from app_store_scraper import AppStore
 from time import sleep
 import pandas as pd
 import datetime
@@ -9,45 +7,45 @@ import os
 import requests
 from dotenv import load_dotenv
 
-def get_playstore_reviews(past_days,source="PineLabs"):
-    if source=="PineLabs":
-        app_id="com.pinelabs.pinelabsone"
-    elif source=="Razorpay":
-        app_id ="com.razorpay.payments.app"
-    else:
-        app_id ="net.one97.paytm"
-    data = reviews_all(app_id, lang="en", country="us")
-    df = pd.DataFrame(data)
-    df["source"] = "Play Store"
-    df=df[["content","at","source"]].rename(columns={"content": "review"})
-    # Make sure 'at' column is timezone-aware
-    df["at"] = pd.to_datetime(df["at"], utc=True)
-    # Filter reviews based on past_days
-    end_date = datetime.datetime.now(datetime.UTC)
-    start_date = end_date - datetime.timedelta(days=past_days)
-    df = df[df["at"] >= start_date]
-    return df
+# def get_playstore_reviews(past_days,source="PineLabs"):
+#     if source=="PineLabs":
+#         app_id="com.pinelabs.pinelabsone"
+#     elif source=="Razorpay":
+#         app_id ="com.razorpay.payments.app"
+#     else:
+#         app_id ="net.one97.paytm"
+#     data = reviews_all(app_id, lang="en", country="us")
+#     df = pd.DataFrame(data)
+#     df["source"] = "Play Store"
+#     df=df[["content","at","source"]].rename(columns={"content": "review"})
+#     # Make sure 'at' column is timezone-aware
+#     df["at"] = pd.to_datetime(df["at"], utc=True)
+#     # Filter reviews based on past_days
+#     end_date = datetime.datetime.now(datetime.UTC)
+#     start_date = end_date - datetime.timedelta(days=past_days)
+#     df = df[df["at"] >= start_date]
+#     return df
 
-def get_apple_store_reviews(past_days,source="PineLabs"):
-    if source=="PineLabs":
-        app_id = 6444654068  # Replace with the correct Pine Labs App ID
-        app_name = "Pine Labs" # You need to provide the app name here
-    else:
-        app_id = 1497250144
-        app_name="Razorpay"   
-    app = AppStore(country="in", app_name=app_name, app_id=app_id) # Pass app_name to AppStore
-    app.review(how_many=50)
-    df = pd.DataFrame(app.reviews)
-    df["source"] = "Apple Store"
-    df = df[["review", "date", "source"]]
-    df["date"] = pd.to_datetime(df["date"], utc=True)
-    df = df.sort_values(by="date", ascending=False).reset_index(drop=True)
-    # Filter reviews based on past_days
-    end_date = datetime.datetime.now(datetime.UTC)
-    start_date = end_date - datetime.timedelta(days=past_days)
-    df = df[df["date"] >= start_date]
-    df = df.rename(columns={"date": "at"})
-    return df
+# def get_apple_store_reviews(past_days,source="PineLabs"):
+#     if source=="PineLabs":
+#         app_id = 6444654068  # Replace with the correct Pine Labs App ID
+#         app_name = "Pine Labs" # You need to provide the app name here
+#     else:
+#         app_id = 1497250144
+#         app_name="Razorpay"   
+#     app = AppStore(country="in", app_name=app_name, app_id=app_id) # Pass app_name to AppStore
+#     app.review(how_many=50)
+#     df = pd.DataFrame(app.reviews)
+#     df["source"] = "Apple Store"
+#     df = df[["review", "date", "source"]]
+#     df["date"] = pd.to_datetime(df["date"], utc=True)
+#     df = df.sort_values(by="date", ascending=False).reset_index(drop=True)
+#     # Filter reviews based on past_days
+#     end_date = datetime.datetime.now(datetime.UTC)
+#     start_date = end_date - datetime.timedelta(days=past_days)
+#     df = df[df["date"] >= start_date]
+#     df = df.rename(columns={"date": "at"})
+#     return df
 
 # Access environment variables
 X_api = "6d3b9ae245474bc09b0f121932a19234"
