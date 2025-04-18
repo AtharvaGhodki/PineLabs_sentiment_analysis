@@ -1,4 +1,4 @@
-from time import sleep
+import time
 import pandas as pd
 import datetime
 from sentiment import predict_sentiment
@@ -6,6 +6,7 @@ from report import categorize_comment
 import os
 import requests
 from dotenv import load_dotenv
+from pathlib import Path
 
 # def get_playstore_reviews(past_days,source="PineLabs"):
 #     if source=="PineLabs":
@@ -47,10 +48,8 @@ from dotenv import load_dotenv
 #     df = df.rename(columns={"date": "at"})
 #     return df
 
-# Access environment variables
-X_api = "6d3b9ae245474bc09b0f121932a19234"
 
-def get_twitter_comments(past_days,source):
+def get_twitter_comments(past_days,source,X_api):
     end_date = datetime.datetime.now(datetime.timezone.utc)
     start_date = end_date - datetime.timedelta(days=past_days)  # Ensure timezone-aware  
     start_date_str = start_date.strftime('%Y-%m-%d')
@@ -108,30 +107,71 @@ def get_twitter_comments(past_days,source):
     df = pd.DataFrame(all_reviews)
     return df    
     
-def get_all_replies_with_sentiment(past_days=50):
-    """Fetch or load replies, apply sentiment analysis, and return the final DataFrame."""
+# def get_all_replies_with_sentiment(past_days=50):
+#     """Fetch or load replies, apply sentiment analysis, and return the final DataFrame."""
     
-    if os.path.exists('all_replies_with_sentiment.csv'):
-        # Load existing data
-        df_combined = pd.read_csv('all_replies_with_sentiment.csv')
-        return df_combined
-    else:
-        # Fetch new data
-        df1 = get_twitter_comments(past_days,"PineLabs")
-        df2 = get_twitter_comments(past_days,"Razorpay")
-        df3 = get_twitter_comments(past_days,"Paytm")
-        #df2 = get_playstore_reviews(past_days,source)
-        #df3 = get_apple_store_reviews(past_days,source)
+#     if os.path.exists('all_replies_with_sentiment.csv'):
+#         # Load existing data
+#         df_combined = pd.read_csv('all_replies_with_sentiment.csv')
+#         return df_combined
+#     else:
+#         # Fetch new data
+#         df1 = get_twitter_comments(past_days,"PineLabs")
+#         df2=  get_twitter_comments(past_days,"pinelabsonline")
+#         df3 = get_twitter_comments(past_days,"Razorpay")
+#         df4 = get_twitter_comments(past_days,"Paytm")
+#         #df2 = get_playstore_reviews(past_days,source)
+#         #df3 = get_apple_store_reviews(past_days,source)
         
-        # Combine and save
-        df_combined = pd.concat([df1,df2,df3], ignore_index=True)
+#         # Combine and save
+#         df_combined = pd.concat([df1,df2,df3,df4], ignore_index=True)
+#         df_combined['source'] = df_combined['source'].replace('pinelabsonline', 'PineLabs')
     
-    # Apply sentiment analysis
+#     # Apply sentiment analysis
+#     df_combined[['sentiment', 'score']] = df_combined['review'].apply(lambda x: pd.Series(predict_sentiment(x)))
+#     df_combined[['category']] = df_combined['review'].apply(
+#     lambda x: pd.Series(categorize_comment(x)['predicted_category'])
+# )
+#     # Save final dataset
+#     #df_combined.to_csv('all_replies_with_sentiment.csv', index=False)
+    
+#     return df_combined    
+
+def is_cache_stale(file_path, max_age_hours=12):
+    if not os.path.exists(file_path):
+        return True
+    last_modified_time = os.path.getmtime(file_path)
+    age_hours = (time.time() - last_modified_time) / 3600  # convert to hours
+    return age_hours > max_age_hours
+
+def get_all_replies_with_sentiment(X_api, groq_api, past_days=7, max_cache_age_hours=24):
+    """Fetch or load replies, apply sentiment analysis, and return the final DataFrame."""
+    cache_dir = "cache"
+    os.makedirs(cache_dir, exist_ok=True)
+    
+    cache_file = os.path.join(cache_dir, f"replies_{past_days}days.csv")
+    
+    if os.path.exists(cache_file) and not is_cache_stale(cache_file, max_cache_age_hours):
+        df_combined = pd.read_csv(cache_file, parse_dates=['at'])
+        return df_combined
+
+    # Fetch fresh data from Twitter API
+    df1 = get_twitter_comments(past_days, "PineLabs", X_api)
+    df2 = get_twitter_comments(past_days, "pinelabsonline", X_api)
+    df3 = get_twitter_comments(past_days, "Razorpay", X_api)
+    df4 = get_twitter_comments(past_days, "Paytm", X_api)
+
+    # Combine and normalize
+    df_combined = pd.concat([df1, df2, df3, df4], ignore_index=True)
+    df_combined['source'] = df_combined['source'].replace('pinelabsonline', 'PineLabs')
+
+    # Apply sentiment & categorization
     df_combined[['sentiment', 'score']] = df_combined['review'].apply(lambda x: pd.Series(predict_sentiment(x)))
     df_combined[['category']] = df_combined['review'].apply(
-    lambda x: pd.Series(categorize_comment(x)['predicted_category'])
-)
-    # Save final dataset
-    #df_combined.to_csv('all_replies_with_sentiment.csv', index=False)
-    
-    return df_combined    
+        lambda x: pd.Series(categorize_comment(x,groq_api)['predicted_category'])
+    )
+
+    # Save to cache
+    df_combined.to_csv(cache_file, index=False)
+
+    return df_combined

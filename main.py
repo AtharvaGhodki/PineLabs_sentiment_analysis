@@ -14,6 +14,12 @@ import re
 from replies import get_all_replies_with_sentiment
 from report import generate_improvement_report
 
+# Access Twitter API key from Streamlit secrets
+twitter_api_key = st.secrets["twitter"]["bearer_token"]
+
+# Access Groq API key from Streamlit secrets
+groq_api_key = st.secrets["groq"]["api_key"]
+
 # Set page configuration
 st.set_page_config(
     page_title="Pine Labs Sentiment Analysis",
@@ -482,7 +488,7 @@ def main():
                             
                         try:
                             # Get sentiment data
-                            st.session_state.data = get_all_replies_with_sentiment(days)
+                            st.session_state.data = get_all_replies_with_sentiment(twitter_api_key,groq_api_key, days,24)
                             st.session_state.page = 'dashboard'
                             st.rerun()
                         except Exception as e:
@@ -649,7 +655,7 @@ def main():
                 """, unsafe_allow_html=True)
             
             # Company Comparison Metrics when viewing all companies
-            if st.session_state.selected_company == 'All':
+            if st.session_state.selected_company == 'Compare All':
                 st.markdown("<div style='height: 20px;'></div>", unsafe_allow_html=True)
                 st.markdown("""
                     <div class="chart-container" style="animation: fadeIn 1.6s ease-out;">
@@ -777,7 +783,7 @@ def main():
                 # Pie chart for sentiment distribution with error handling
                 try:
                     fig = px.pie(
-                        names=sentiment_counts.index,
+                        names=sentiment_counts.index.str.capitalize(),
                         values=sentiment_counts.values,
                         color=sentiment_counts.index,
                         color_discrete_map={'positive': '#4CAF50', 'neutral': '#FFC107', 'negative': '#F44336'},
@@ -2061,7 +2067,7 @@ def main():
                                             # Check if generate_improvement_report function exists in the global namespace
                                             if 'generate_improvement_report' in globals():
                                                 # Call generate_improvement_report function with negative comments
-                                                improvement_report = generate_improvement_report(negative_comments)
+                                                improvement_report = generate_improvement_report(negative_comments,groq_api_key)
                                                 
                                                 # Display the improvement report
                                                 st.markdown(f"""

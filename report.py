@@ -7,11 +7,8 @@ from dotenv import load_dotenv
 
 # Load environment variables from .env file
 load_dotenv()
-groq_api = "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"
-openai_api="sk-proj-KXIpEZJe7gC8dNc9uv-tvG7O7Ii4-Mvm0SxGvnKTF5YdKJs8q01WRlRdNRkv9iyqczu2T_wzZfT3BlbkFJP3XKOaSIDeMOp0J3pcThLxSB9NC7pVuEZejucZEp_4rKEasnSvnHNTpHJTnrf7AO1XMNMe8U0A"
-openai.api_key = openai_api
 
-# def categorize_comment(comment):
+# def categorize_comment_1(comment):
 #     prompt = f"""
 # You are an expert at categorizing user feedback into specific problem categories.
 
@@ -42,7 +39,7 @@ openai.api_key = openai_api
 #         "predicted_category": category
 #     }
 
-def categorize_comment(comment):
+def categorize_comment(comment,groq_api):
     template = """
 You are an expert at categorizing user feedback into specific problem categories.
 
@@ -75,7 +72,7 @@ Comment: {comment}
     }
 
 
-def generate_improvement_report(negative_comments):
+def generate_improvement_report(negative_comments,groq_api):
     template = """
     You are an expert AI specializing in customer feedback analysis and product improvement.
     Generate a **concise and professional improvement report** based on the top 5 negative comments provided below.
@@ -108,4 +105,4 @@ def generate_improvement_report(negative_comments):
 
 
 
-#print(categorize_comment("@AnqFinance after 30 days I will complaint on RBI ombudsman for your non service response."))
+# print(categorize_comment_1("@AnqFinance after 30 days I will complaint on RBI ombudsman for your non service response."))
