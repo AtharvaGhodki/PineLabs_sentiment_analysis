@@ -43,14 +43,18 @@ def categorize_comment(comment,groq_api):
     template = """
 You are an expert at categorizing user feedback into specific problem categories.
 
-Given a category list: [transaction-success, settlement, servicing, onboarding, pricing, device-issue], select the most appropriate category for the provided comment. Your response should only contain the category name and nothing else.
+Given the following fixed category list:
+[Service related, Device / POS, Fee / Charges, Payments related, Settlement, Enquiry, General]
+
+Your task is to select only one most appropriate category from this list for each user comment. Do not create or infer any new categories outside this list.
+
+Your response should contain only the selected category name, with no explanation or extra text.
 
 Sample Format:
 Sample Comment: I was charged twice but didn't receive confirmation.
-Response: transaction success
+Response: Payments related
 
-Now, process the following comment accordingly.
-
+Now, process the following comment accordingly:
 Comment: {comment}
 """
 
@@ -105,4 +109,4 @@ def generate_improvement_report(negative_comments,groq_api):
 
 
 
-# print(categorize_comment_1("@AnqFinance after 30 days I will complaint on RBI ombudsman for your non service response."))
+# print(categorize_comment("@AnqFinance after 30 days I will complaint on RBI ombudsman for your non service response."))

@@ -448,7 +448,7 @@ def main():
             col1, col2, col3 = st.columns([2, 1, 2])  # Adjust these numbers to change column widths
             with col2:
                 days = st.selectbox("",
-                                options=[5, 10, 15, 30], 
+                                options=[5,7,10], 
                                 index=0,
                                 key="days_input",
                                 help="Select the number of days for which you want to analyze sentiment data")
@@ -868,7 +868,7 @@ def main():
                             st.markdown(f"""
                             <div style="background-color: #f0f5f2; padding: 15px; border-radius: 10px; margin-top: 10px;">
                                 <h4 style="color: #345c49; margin-top: 0;">📈 Trend Insights</h4>
-                                <p>Recent sentiment trend is <b>{trend_direction}</b> compared to the overall period.</p>
+                                <p>Recent past 3 days sentiment trend is <b>{trend_direction}</b> compared to the overall period.</p>
                                 <p>See the "Trends Analysis" tab for more detailed time-based analysis.</p>
                             </div>
                             """, unsafe_allow_html=True)
@@ -931,28 +931,34 @@ def main():
                     
                     # Group by time period and sentiment
                     time_sentiment = filtered_data.groupby(['time_group', 'sentiment']).size().unstack().fillna(0)
-                    
+
+                    # Capitalize sentiment column names for the legend
+                    time_sentiment.columns = [col.capitalize() for col in time_sentiment.columns]
+
                     if not time_sentiment.empty:
+                        # Define updated color map with capitalized keys
+                        color_map = {'Positive': '#4CAF50', 'Neutral': '#FFC107', 'Negative': '#F44336'}
+                        
                         # Create the trend chart based on selection
                         if chart_type == "Line":
                             fig = px.line(
                                 time_sentiment, 
                                 labels={'value': 'Number of Comments', 'time_group': 'Date'},
-                                color_discrete_map={'positive': '#4CAF50', 'neutral': '#FFC107', 'negative': '#F44336'}
+                                color_discrete_map=color_map
                             )
                         elif chart_type == "Area":
                             fig = px.area(
                                 time_sentiment,
                                 labels={'value': 'Number of Comments', 'time_group': 'Date'},
-                                color_discrete_map={'positive': '#4CAF50', 'neutral': '#FFC107', 'negative': '#F44336'}
+                                color_discrete_map=color_map
                             )
                         else:  # Bar
                             fig = px.bar(
                                 time_sentiment,
                                 labels={'value': 'Number of Comments', 'time_group': 'Date'},
-                                color_discrete_map={'positive': '#4CAF50', 'neutral': '#FFC107', 'negative': '#F44336'}
+                                color_discrete_map=color_map
                             )
-                        
+
                         fig.update_layout(
                             title=f"{time_grouping} Sentiment Trend",
                             xaxis_title='Date',
@@ -1624,13 +1630,13 @@ def main():
                                     var_name='sentiment',
                                     value_name='count'
                                 )
-                                
+                                company_sentiment_long['sentiment'] = company_sentiment_long['sentiment'].str.capitalize()
                                 fig = px.bar(
                                     company_sentiment_long,
                                     x='source',
                                     y='count',
                                     color='sentiment',
-                                    color_discrete_map={'positive': '#4CAF50', 'neutral': '#FFC107', 'negative': '#F44336'},
+                                    color_discrete_map={'Positive': '#4CAF50', 'Neutral': '#FFC107', 'Negative': '#F44336'},
                                     title='Sentiment Distribution by Company',
                                     labels={'source': 'Company', 'count': 'Number of Comments', 'sentiment': 'Sentiment'}
                                 )
@@ -1649,13 +1655,13 @@ def main():
                                     var_name='sentiment',
                                     value_name='percentage'
                                 )
-                                
+                                company_sentiment_pct_long['sentiment'] = company_sentiment_pct_long['sentiment'].str.capitalize()
                                 fig = px.bar(
                                     company_sentiment_pct_long,
                                     x='source',
                                     y='percentage',
                                     color='sentiment',
-                                    color_discrete_map={'positive': '#4CAF50', 'neutral': '#FFC107', 'negative': '#F44336'},
+                                    color_discrete_map={'Positive': '#4CAF50', 'Neutral': '#FFC107', 'Negative': '#F44336'},
                                     title='Sentiment Distribution by Company (Percentage)',
                                     labels={'source': 'Company', 'percentage': 'Percentage (%)', 'sentiment': 'Sentiment'}
                                 )
@@ -1829,14 +1835,14 @@ def main():
                             
                             # Filter for selected category
                             category_comparison = topic_sentiment_df[topic_sentiment_df['category'] == selected_category]
-                            
+                            category_comparison['sentiment'] = category_comparison['sentiment'].str.capitalize()
                             if not category_comparison.empty:
                                 fig = px.bar(
                                     category_comparison,
                                     x='company',
                                     y='percentage',
                                     color='sentiment',
-                                    color_discrete_map={'positive': '#4CAF50', 'neutral': '#FFC107', 'negative': '#F44336'},
+                                    color_discrete_map={'Positive': '#4CAF50', 'Neutral': '#FFC107', 'Negative': '#F44336'},
                                     title=f'Sentiment Distribution for "{selected_category}" Category Across Companies',
                                     labels={'company': 'Company', 'percentage': 'Percentage (%)', 'sentiment': 'Sentiment'},
                                     text='percentage'
@@ -1852,13 +1858,13 @@ def main():
                             # Let user select which sentiment to view in the heatmap
                             selected_sentiment = st.radio(
                                 "Select sentiment to view:",
-                                options=['positive', 'negative', 'neutral', 'all'],
+                                options=[ 'All','Positive', 'Negative', 'Neutral'],
                                 horizontal=True,
                                 index=0
                             )
                             
                             # Filter based on selected sentiment
-                            if selected_sentiment != 'all':
+                            if selected_sentiment != 'All':
                                 heatmap_data = topic_sentiment_df[topic_sentiment_df['sentiment'] == selected_sentiment]
                                 title_prefix = selected_sentiment.capitalize()
                             else:
@@ -1867,7 +1873,7 @@ def main():
                                 title_prefix = 'Overall'
                             
                             # Create the appropriate heatmap based on selection
-                            if selected_sentiment != 'all':
+                            if selected_sentiment != 'All':
                                 # Pivot the data for heatmap
                                 topic_pivot = heatmap_data.pivot(index='company', columns='category', values='percentage').fillna(0)
                                 
