@@ -137,41 +137,109 @@ def get_twitter_comments(past_days,source,X_api):
     
 #     return df_combined    
 
-def is_cache_stale(file_path, max_age_hours=12):
-    if not os.path.exists(file_path):
-        return True
-    last_modified_time = os.path.getmtime(file_path)
-    age_hours = (time.time() - last_modified_time) / 3600  # convert to hours
-    return age_hours > max_age_hours
+# def is_cache_stale(file_path, max_age_hours=12):
+#     if not os.path.exists(file_path):
+#         return True
+#     last_modified_time = os.path.getmtime(file_path)
+#     age_hours = (time.time() - last_modified_time) / 3600  # convert to hours
+#     return age_hours > max_age_hours
 
-def get_all_replies_with_sentiment(X_api, groq_api, past_days=7, max_cache_age_hours=24):
-    """Fetch or load replies, apply sentiment analysis, and return the final DataFrame."""
-    cache_dir = "cache"
-    os.makedirs(cache_dir, exist_ok=True)
+# def get_all_replies_with_sentiment(X_api, groq_api, past_days=7, max_cache_age_hours=120):
+#     """Fetch or load replies, apply sentiment analysis, and return the final DataFrame."""
+#     cache_dir = "cache"
+#     os.makedirs(cache_dir, exist_ok=True)
     
-    cache_file = os.path.join(cache_dir, f"replies_{past_days}days.csv")
+#     cache_file = os.path.join(cache_dir, f"replies_{past_days}days.csv")
     
-    if os.path.exists(cache_file) and not is_cache_stale(cache_file, max_cache_age_hours):
-        df_combined = pd.read_csv(cache_file, parse_dates=['at'])
-        return df_combined
+#     if os.path.exists(cache_file) and not is_cache_stale(cache_file, max_cache_age_hours):
+#         df_combined = pd.read_csv(cache_file, parse_dates=['at'])
+#         return df_combined
 
-    # Fetch fresh data from Twitter API
+#     # Fetch fresh data from Twitter API
+#     df1 = get_twitter_comments(past_days, "PineLabs", X_api)
+#     df2 = get_twitter_comments(past_days, "pinelabsonline", X_api)
+#     df3 = get_twitter_comments(past_days, "Razorpay", X_api)
+#     df4 = get_twitter_comments(past_days, "Paytm", X_api)
+
+#     # Combine and normalize
+#     df_combined = pd.concat([df1, df2, df3, df4], ignore_index=True)
+#     df_combined['source'] = df_combined['source'].replace('pinelabsonline', 'PineLabs')
+
+#     # Apply sentiment & categorization
+#     df_combined[['sentiment', 'score']] = df_combined['review'].apply(lambda x: pd.Series(predict_sentiment(x)))
+#     df_combined[['category']] = df_combined['review'].apply(
+#         lambda x: pd.Series(categorize_comment(x,groq_api)['predicted_category'])
+#     )
+
+#     # Save to cache
+#     df_combined.to_csv(cache_file, index=False)
+
+#     return df_combined
+
+def fetch_twitter_data(past_days, X_api, groq_api):
+    """Helper to fetch data for all 4 sources for given number of days and process them."""
     df1 = get_twitter_comments(past_days, "PineLabs", X_api)
     df2 = get_twitter_comments(past_days, "pinelabsonline", X_api)
     df3 = get_twitter_comments(past_days, "Razorpay", X_api)
     df4 = get_twitter_comments(past_days, "Paytm", X_api)
 
-    # Combine and normalize
     df_combined = pd.concat([df1, df2, df3, df4], ignore_index=True)
     df_combined['source'] = df_combined['source'].replace('pinelabsonline', 'PineLabs')
 
+    # Safely convert 'at' to datetime (if it's not already)
+    df_combined['at'] = pd.to_datetime(df_combined['at'], errors='coerce')
+
+    # If timezone-naive, make it UTC. If timezone-aware, do nothing.
+    if df_combined['at'].dt.tz is None:
+        df_combined['at'] = df_combined['at'].dt.tz_localize('UTC')
+    else:
+        df_combined['at'] = df_combined['at'].dt.tz_convert('UTC')
+
+    # Drop rows with invalid dates (NaT)
+    df_combined = df_combined.dropna(subset=['at'])
+
     # Apply sentiment & categorization
-    df_combined[['sentiment', 'score']] = df_combined['review'].apply(lambda x: pd.Series(predict_sentiment(x)))
+    df_combined[['sentiment', 'score']] = df_combined['review'].apply(
+        lambda x: pd.Series(predict_sentiment(x))
+    )
     df_combined[['category']] = df_combined['review'].apply(
-        lambda x: pd.Series(categorize_comment(x,groq_api)['predicted_category'])
+        lambda x: pd.Series(categorize_comment(x, groq_api)['predicted_category'])
     )
 
-    # Save to cache
-    df_combined.to_csv(cache_file, index=False)
-
     return df_combined
+
+
+def get_all_replies_with_sentiment(X_api, groq_api, past_days=7):
+    """Fetch or load replies, apply sentiment analysis, and return the final DataFrame."""
+    cache_dir = "cache"
+    os.makedirs(cache_dir, exist_ok=True)
+    full_cache_file = os.path.join(cache_dir, "replies_30days.csv")
+
+    now = datetime.datetime.now(datetime.timezone.utc)
+    start_date = now - datetime.timedelta(days=30)
+    target_start_date = now - datetime.timedelta(days=past_days)
+
+    if os.path.exists(full_cache_file):
+        df_30 = pd.read_csv(full_cache_file, parse_dates=["at"])
+        df_30 = df_30[df_30['at'] >= start_date]  # Ensure only last 30 days in cache
+
+        latest_cache_date = df_30['at'].max()
+        days_missing = (now - latest_cache_date).days
+
+        # Fetch only the new days missing from the cache
+        if days_missing > 0:
+            print(f"Fetching {days_missing} new days to update cache.")
+            df_new = fetch_twitter_data(days_missing, X_api, groq_api)
+            df_30 = pd.concat([df_30, df_new], ignore_index=True)
+            df_30.drop_duplicates(subset=["review", "at", "source"], inplace=True)
+            df_30 = df_30[df_30['at'] >= start_date]  # Trim old data again
+            df_30.to_csv(full_cache_file, index=False)
+    else:
+        print("No existing 30-day cache. Fetching full 30-day data.")
+        df_30 = fetch_twitter_data(30, X_api, groq_api)
+        df_30.to_csv(full_cache_file, index=False)
+
+    # Filter from 30-day data
+    df_filtered = df_30[df_30['at'] >= target_start_date]
+
+    return df_filtered

@@ -448,7 +448,7 @@ def main():
             col1, col2, col3 = st.columns([2, 1, 2])  # Adjust these numbers to change column widths
             with col2:
                 days = st.selectbox("",
-                                options=[7, 30, 60, 90], 
+                                options=[5, 10, 15, 30], 
                                 index=0,
                                 key="days_input",
                                 help="Select the number of days for which you want to analyze sentiment data")
@@ -488,7 +488,7 @@ def main():
                             
                         try:
                             # Get sentiment data
-                            st.session_state.data = get_all_replies_with_sentiment(twitter_api_key,groq_api_key, days,24)
+                            st.session_state.data = get_all_replies_with_sentiment(twitter_api_key,groq_api_key, days)
                             st.session_state.page = 'dashboard'
                             st.rerun()
                         except Exception as e:
