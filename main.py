@@ -448,7 +448,7 @@ def main():
             col1, col2, col3 = st.columns([2, 1, 2])  # Adjust these numbers to change column widths
             with col2:
                 days = st.selectbox("",
-                                options=[5,7,10], 
+                                options=[5,10,20,30], 
                                 index=0,
                                 key="days_input",
                                 help="Select the number of days for which you want to analyze sentiment data")
