@@ -969,6 +969,9 @@ def main():
                         
                         st.plotly_chart(fig, use_container_width=True)
                         
+                        time_sentiment.columns = [col[0].lower() + col[1:] if col else '' for col in time_sentiment.columns]
+
+
                         # Add advanced trend analysis
                         if len(time_sentiment) > 1:
                             # Calculate moving averages for smoother trend detection
