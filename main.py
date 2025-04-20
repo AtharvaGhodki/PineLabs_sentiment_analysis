@@ -1353,7 +1353,6 @@ def main():
                             <li>Sentiment is <b>{abs(weekday_weekend_diff):.1f}%</b> {'higher' if weekday_weekend_diff > 0 else 'lower'} on weekdays compared to weekends</li>
                                 </ul>
                                 
-                                <p>This analysis can help schedule social media responses and marketing campaigns when users are most positive.</p>
                             </div>
                             """, unsafe_allow_html=True)
                     else:
@@ -1980,7 +1979,7 @@ def main():
                         st.error(f"Error creating topic distribution comparison: {str(e)}")
                     
                     # Summary comparison and improvement recommendations
-                    st.markdown("<h4>Competitive Analysis Summary</h4>", unsafe_allow_html=True)
+                    st.markdown("<h4>Competitive Analysis Summary for PineLabs</h4>", unsafe_allow_html=True)
                     
                     # Check if PineLabs exists in the data
                     if 'PineLabs' in compare_companies:
@@ -2025,12 +2024,12 @@ def main():
                                         pine_category_sentiment = pine_category_sentiment.sort_values(by='positive_ratio', ascending=False)
                                         
                                         # Top 3 categories as strengths
-                                        for category in pine_category_sentiment.head(3).index:
+                                        for category in pine_category_sentiment.head(2).index:
                                             ratio = pine_category_sentiment.loc[category, 'positive_ratio']
                                             strengths.append(f"<li>Strong performance in <b>{category}</b> with {ratio:.1f}% positive sentiment</li>")
                                         
                                         # Bottom 3 categories as weaknesses
-                                        for category in pine_category_sentiment.tail(3).index:
+                                        for category in pine_category_sentiment.tail(2).index:
                                             ratio = pine_category_sentiment.loc[category, 'positive_ratio']
                                             weaknesses.append(f"<li>Lower satisfaction in <b>{category}</b> with only {ratio:.1f}% positive sentiment</li>")
                                 
@@ -2052,7 +2051,7 @@ def main():
                                     <div style="background-color: #e8f5e9; padding: 15px; border-radius: 10px; height: 100%;">
                                         <h5 style="color: #2e7d32; margin-top: 0;">Strengths</h5>
                                         <ul>
-                                            {"".join(strengths[:3])}
+                                            {"".join(strengths[:2])}
                                         </ul>
                                     </div>
                                     """, unsafe_allow_html=True)
@@ -2062,7 +2061,7 @@ def main():
                                     <div style="background-color: #ffebee; padding: 15px; border-radius: 10px; height: 100%;">
                                         <h5 style="color: #c62828; margin-top: 0;">Weaknesses</h5>
                                         <ul>
-                                            {"".join(weaknesses[:3])}
+                                            {"".join(weaknesses[:2])}
                                         </ul>
                                     </div>
                                     """, unsafe_allow_html=True)
