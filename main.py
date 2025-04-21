@@ -385,7 +385,7 @@ def main():
         col1, col2, col3 = st.columns([2, 2, 1])
         with col2:
             try:
-                st.image("pinelabs_3.PNG", width=200)
+                st.image("pinelabs_3.png", width=200)
             except:
                 # Fallback to text if image fails to load
                 st.markdown("""
