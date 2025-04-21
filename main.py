@@ -379,11 +379,13 @@ def main():
     # Information page
     if st.session_state.page == 'info':
         # Display Pine Labs logo with animation
-        col1, col2, col3 = st.columns([1, 2, 1])
+        st.markdown("<div style='padding-top: 5px;'></div>", unsafe_allow_html=True)
+
+        # Center the image with proper spacing using columns
+        col1, col2, col3 = st.columns([2, 2, 1])
         with col2:
-            # Try to load logo with error handling
             try:
-                st.image("pinelabs_3.png", width=300)
+                st.image("pinelabs_3.PNG", width=200)
             except:
                 # Fallback to text if image fails to load
                 st.markdown("""
@@ -399,6 +401,9 @@ def main():
                 }
                 </style>
                 """, unsafe_allow_html=True)
+
+        # Add some space after the logo
+        st.markdown("<div style='margin-bottom: 10px;'></div>", unsafe_allow_html=True)
         
         # App title with animation
         st.markdown("""
@@ -445,7 +450,7 @@ def main():
                 <div class="metric-title">Select number of past days for analysis</div>
             """, unsafe_allow_html=True)
             
-            col1, col2, col3 = st.columns([2, 1, 2])  # Adjust these numbers to change column widths
+            col1, col2, col3 = st.columns([1, 2, 1])  # Adjust these numbers to change column widths
             with col2:
                 days = st.selectbox("",
                                 options=[5,10,20,30], 
@@ -454,7 +459,7 @@ def main():
                                 help="Select the number of days for which you want to analyze sentiment data")
             
             # Button with loading animation
-            col1, col2, col3 = st.columns([1, 2, 1])
+            col1, col2, col3 = st.columns([1.2, 2, 1])
             with col2:
                 if st.button("Perform Sentiment Analysis", key="analyze_button", 
                             help="Click to fetch and analyze sentiment data for the selected days"):
