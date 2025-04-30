@@ -13,3 +13,4 @@ langchain_groq
 groq
 openai==0.28
 python-dotenv
+fpdf

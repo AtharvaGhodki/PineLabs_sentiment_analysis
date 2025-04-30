@@ -13,12 +13,359 @@ from collections import Counter
 import re
 from replies import get_all_replies_with_sentiment
 from report import generate_improvement_report
+import io
+import matplotlib.pyplot as plt
+from fpdf import FPDF
+import base64
+from datetime import datetime
+import plotly.io as pio
+from PIL import Image
 
 # Access Twitter API key from Streamlit secrets
 twitter_api_key = st.secrets["twitter"]["bearer_token"]
 
 # Access Groq API key from Streamlit secrets
 groq_api_key = st.secrets["groq"]["api_key"]
+
+def generate_dashboard_report(data, sentiment_counts, category_sentiment_data, positive_ratios=None, 
+                             improvement_report=None, selected_companies=None):
+    """
+    Generate a comprehensive PDF report from dashboard data
+    
+    Parameters:
+    - data: DataFrame containing sentiment analysis data
+    - sentiment_counts: Series or dict containing sentiment distribution counts
+    - category_sentiment_data: DataFrame with category-wise sentiment distribution
+    - positive_ratios: DataFrame with company positive sentiment ratios (optional)
+    - improvement_report: String containing AI-generated improvement recommendations (optional)
+    - selected_companies: List of selected companies for comparison (optional)
+    
+    Returns:
+    - BytesIO object containing the PDF report
+    """
+    # Create PDF with A4 dimensions
+    class PDF(FPDF):
+        def header(self):
+            # Add company logo (placeholder)
+            self.image('pinelabs_3.png', 10, 8, 30)
+            # Add report title
+            self.set_font('Arial', 'B', 15)
+            self.cell(0, 10, 'Sentiment Analysis Dashboard Report', 0, 1, 'C')
+            # Add date
+            self.set_font('Arial', 'I', 10)
+            self.cell(0, 10, f'Generated on {datetime.now().strftime("%Y-%m-%d %H:%M")}', 0, 1, 'R')
+            # Add line break
+            self.ln(5)
+        
+        def footer(self):
+            # Position at 1.5 cm from bottom
+            self.set_y(-15)
+            # Arial italic 8
+            self.set_font('Arial', 'I', 8)
+            # Add page number
+            self.cell(0, 10, f'Page {self.page_no()}/2', 0, 0, 'C')
+            
+    # Initialize PDF object
+    pdf = PDF()
+    pdf.set_auto_page_break(auto=True, margin=15)
+    pdf.add_page()
+    
+    # Add executive summary section
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, 'Executive Summary', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    
+    # Calculate key metrics
+    total_reviews = len(data)
+    if isinstance(sentiment_counts, dict):
+        pos_count = sentiment_counts.get('positive', 0)
+        neg_count = sentiment_counts.get('negative', 0)
+        neu_count = sentiment_counts.get('neutral', 0)
+    else:
+        pos_count = sentiment_counts.get('positive', 0) if not sentiment_counts.empty else 0
+        neg_count = sentiment_counts.get('negative', 0) if not sentiment_counts.empty else 0
+        neu_count = sentiment_counts.get('neutral', 0) if not sentiment_counts.empty else 0
+        
+    pos_percent = (pos_count / total_reviews * 100) if total_reviews > 0 else 0
+    neg_percent = (neg_count / total_reviews * 100) if total_reviews > 0 else 0
+    neu_percent = (neu_count / total_reviews * 100) if total_reviews > 0 else 0
+    
+    # Add summary text
+    pdf.multi_cell(0, 5, f"This report provides a comprehensive analysis of {total_reviews} reviews across "
+                      f"{len(data['source'].unique())} sources. The overall sentiment distribution shows "
+                      f"{pos_percent:.1f}% positive, {neg_percent:.1f}% negative, and {neu_percent:.1f}% neutral reviews.", 0)
+    pdf.ln(5)
+    
+    # Create matplotlib figure for sentiment distribution (pie chart)
+    fig, ax = plt.subplots(figsize=(7, 4))
+    labels = ['Positive', 'Neutral', 'Negative']
+    sizes = [pos_count, neu_count, neg_count]
+    colors = ['#4CAF50', '#FFC107', '#F44336']
+    
+    ax.pie(sizes, labels=labels, colors=colors, autopct='%1.1f%%', startangle=90)
+    ax.axis('equal')  # Equal aspect ratio ensures that pie is drawn as a circle
+    plt.title('Overall Sentiment Distribution')
+    
+    # Save pie chart to buffer
+    buf = io.BytesIO()
+    plt.savefig(buf, format='png', dpi=300, bbox_inches='tight')
+    plt.close(fig)
+    buf.seek(0)
+    
+    # Convert BytesIO to a temporary file
+    temp_img_path = "temp_logo.png"
+    with open(temp_img_path, "wb") as f:
+        f.write(buf.getvalue())
+
+    # Use the file path instead of BytesIO
+    pdf.image(temp_img_path, x=10, y=70, w=90)
+
+    # Clean up the temporary file
+    if os.path.exists(temp_img_path):
+        os.remove(temp_img_path)
+    
+    # Create category sentiment bar chart if data is available
+    if category_sentiment_data is not None and not category_sentiment_data.empty:
+        # Prepare data for category chart
+        fig, ax = plt.subplots(figsize=(8, 4))
+        
+        # Get top 5 categories
+        top_categories = category_sentiment_data.head(5)
+        categories = top_categories['category'].tolist()
+        
+        # Create stacked bar chart
+        neg_vals = top_categories['negative_percentage'].tolist() if 'negative_percentage' in top_categories.columns else [0] * len(categories)
+        neu_vals = top_categories['neutral_percentage'].tolist() if 'neutral_percentage' in top_categories.columns else [0] * len(categories)
+        pos_vals = top_categories['positive_percentage'].tolist() if 'positive_percentage' in top_categories.columns else [0] * len(categories)
+        
+        ax.barh(categories, pos_vals, color='#4CAF50', label='Positive')
+        ax.barh(categories, neu_vals, left=pos_vals, color='#FFC107', label='Neutral')
+        ax.barh(categories, neg_vals, left=[p+n for p,n in zip(pos_vals, neu_vals)], color='#F44336', label='Negative')
+        
+        ax.set_xlabel('Percentage (%)')
+        ax.set_title('Sentiment Distribution by Top Categories')
+        ax.legend(loc='lower right')
+        
+        # Save category chart to buffer
+        buf2 = io.BytesIO()
+        plt.savefig(buf2, format='png', dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        buf2.seek(0)
+        
+        # Add category chart to PDF
+        
+        temp_img_path = "temp_logo_2.png"
+        with open(temp_img_path, "wb") as f:
+            f.write(buf2.getvalue())
+
+        # Use the file path instead of BytesIO
+        pdf.image(temp_img_path, x=100, y=70, w=90)
+
+        # Clean up the temporary file
+        if os.path.exists(temp_img_path):
+            os.remove(temp_img_path)
+        
+    
+    # Add company comparison section if available
+    if positive_ratios is not None and not positive_ratios.empty and selected_companies:
+        pdf.ln(85)  # Move down after charts
+        pdf.set_font('Arial', 'B', 14)
+        pdf.cell(0, 10, 'Company Comparison', 0, 1)
+        pdf.set_font('Arial', '', 10)
+        
+        # Create company comparison bar chart
+        fig, ax = plt.subplots(figsize=(8, 4))
+        
+        # Sort companies by positive percentage
+        sorted_companies = positive_ratios.sort_values(by='positive_percentage', ascending=False)
+        companies = sorted_companies['company'].tolist()
+        pos_pcts = sorted_companies['positive_percentage'].tolist()
+        
+        # Create horizontal bar chart
+        bars = ax.barh(companies, pos_pcts, color='#4CAF50')
+        
+        # Add value labels to bars
+        for i, v in enumerate(pos_pcts):
+            ax.text(v + 1, i, f'{v:.1f}%', va='center')
+        
+        ax.set_xlabel('Positive Sentiment (%)')
+        ax.set_title('Positive Sentiment Comparison by Company')
+        
+        # Save company chart to buffer
+        buf3 = io.BytesIO()
+        plt.savefig(buf3, format='png', dpi=300, bbox_inches='tight')
+        plt.close(fig)
+        buf3.seek(0)
+        
+        # Add company chart to PDF
+        temp_img_path = "temp_logo_3.png"
+        with open(temp_img_path, "wb") as f:
+            f.write(buf3.getvalue())
+
+        # Use the file path instead of BytesIO
+        pdf.image( temp_img_path, x=10, y=170, w=180)
+
+        # Clean up the temporary file
+        if os.path.exists(temp_img_path):
+            os.remove(temp_img_path)
+        
+    else:
+        pdf.ln(85)  # Move down after charts
+    
+    # Add second page with improvement recommendations
+    pdf.add_page()
+    pdf.set_font('Arial', 'B', 14)
+    pdf.cell(0, 10, 'Key Findings & Recommendations', 0, 1)
+    
+    # Add key metrics in a table
+    pdf.set_font('Arial', 'B', 11)
+    pdf.cell(0, 10, 'Key Metrics:', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    
+    # Create a simple table for key metrics
+    col_width = pdf.w / 4
+    pdf.set_fill_color(240, 240, 240)
+    
+    # Table headers
+    pdf.cell(col_width, 10, 'Metric', 1, 0, 'C', 1)
+    pdf.cell(col_width, 10, 'Value', 1, 0, 'C', 1)
+    pdf.cell(col_width * 2, 10, 'Interpretation', 1, 1, 'C', 1)
+    
+    # Total reviews
+    pdf.cell(col_width, 10, 'Total Reviews', 1, 0, 'L')
+    pdf.cell(col_width, 10, f'{total_reviews}', 1, 0, 'C')
+    pdf.cell(col_width * 2, 10, 'Sample size for analysis', 1, 1, 'L')
+    
+    # Positive ratio
+    pdf.cell(col_width, 10, 'Positive Ratio', 1, 0, 'L')
+    pdf.cell(col_width, 10, f'{pos_percent:.1f}%', 1, 0, 'C')
+    status = 'Good' if pos_percent > 60 else 'Average' if pos_percent > 40 else 'Needs improvement'
+    pdf.cell(col_width * 2, 10, f'{status}', 1, 1, 'L')
+    
+    # Positive to Negative ratio
+    pos_neg_ratio = pos_count / max(1, neg_count)
+    pdf.cell(col_width, 10, 'Pos:Neg Ratio', 1, 0, 'L')
+    pdf.cell(col_width, 10, f'{pos_neg_ratio:.2f}', 1, 0, 'C')
+    status = 'Good' if pos_neg_ratio > 2 else 'Average' if pos_neg_ratio > 1 else 'Needs improvement'
+    pdf.cell(col_width * 2, 10, f'{status} - Target is >2.0', 1, 1, 'L')
+    
+    # Add AI-generated improvement recommendations
+    pdf.ln(10)
+    pdf.set_font('Arial', 'B', 11)
+    pdf.cell(0, 10, 'Improvement Recommendations:', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    
+    if improvement_report:
+        # Process the HTML from improvement report to plain text
+        from html.parser import HTMLParser
+        
+        class HTMLFilter(HTMLParser):
+            text = ""
+            def handle_data(self, data):
+                self.text += data
+        
+        html_filter = HTMLFilter()
+        html_filter.feed(improvement_report)
+        plain_text = html_filter.text
+        
+        # Add the improvement text
+        pdf.multi_cell(0, 5, plain_text, 0)
+    else:
+        # Generate generic recommendations based on data
+        pdf.multi_cell(0, 5, "Based on the sentiment analysis, we recommend focusing on improving the most mentioned negative aspects in customer feedback. Key areas to address include:", 0)
+        pdf.ln(2)
+        
+        # Try to find top negative categories
+        top_negative_cats = []
+        try:
+            if category_sentiment_data is not None and not category_sentiment_data.empty:
+                # Find categories with highest negative percentage
+                neg_cats = category_sentiment_data.sort_values(by='negative_percentage' if 'negative_percentage' in category_sentiment_data.columns else 'total', ascending=False).head(3)
+                top_negative_cats = neg_cats['category'].tolist() if 'category' in neg_cats.columns else []
+        except:
+            pass
+        
+        # Add bullet points for recommendations
+        if top_negative_cats:
+            for i, cat in enumerate(top_negative_cats):
+                pdf.cell(10, 5, chr(149), 0, 0)  # bullet character
+                pdf.cell(0, 5, f"Improve {cat} by addressing customer pain points and enhancing service quality", 0, 1)
+        else:
+            # Generic recommendations
+            pdf.cell(10, 5, chr(149), 0, 0)  # bullet character
+            pdf.cell(0, 5, "Enhance customer service response time and quality of resolution", 0, 1)
+            pdf.cell(10, 5, chr(149), 0, 0)
+            pdf.cell(0, 5, "Address product quality concerns highlighted in negative feedback", 0, 1)
+            pdf.cell(10, 5, chr(149), 0, 0)
+            pdf.cell(0, 5, "Improve communication channels for better customer engagement", 0, 1)
+    
+    # Add conclusion
+    pdf.ln(10)
+    pdf.set_font('Arial', 'B', 11)
+    pdf.cell(0, 10, 'Conclusion:', 0, 1)
+    pdf.set_font('Arial', '', 10)
+    
+    # Generate dynamic conclusion based on sentiment ratio
+    conclusion_text = ""
+    if pos_percent > 70:
+        conclusion_text = f"With {pos_percent:.1f}% positive sentiment, overall customer satisfaction is high. Focus on maintaining strengths while addressing specific improvement areas to further enhance customer experience."
+    elif pos_percent > 50:
+        conclusion_text = f"With {pos_percent:.1f}% positive sentiment, customer satisfaction is moderate. There are significant opportunities to improve by addressing the negative feedback areas highlighted in this report."
+    else:
+        conclusion_text = f"With only {pos_percent:.1f}% positive sentiment, there are critical areas requiring immediate attention. We recommend a comprehensive review of the highlighted issues and development of an action plan to address customer concerns."
+    
+    pdf.multi_cell(0, 5, conclusion_text, 0)
+    
+    # Add company-specific note if applicable
+    if selected_companies and 'PineLabs' in selected_companies:
+        pdf.ln(5)
+        pdf.multi_cell(0, 5, "Note: For PineLabs specifically, we recommend focusing on the areas where competitor analysis shows significant gaps compared to industry benchmarks.", 0)
+    
+    # Convert PDF to BytesIO
+    pdf_output = io.BytesIO()
+    pdf_bytes = pdf.output(dest='S').encode('latin1')
+    pdf_output.write(pdf_bytes)
+    pdf_output.seek(0)
+    
+    return pdf_output
+
+
+# Function to add the download report button to your Streamlit app
+def add_report_download_button(data, sentiment_counts, category_sentiment_data, positive_ratios=None, 
+                              improvement_report=None, selected_companies=None):
+    """
+    Adds a download report button to the Streamlit app that generates a comprehensive PDF report
+    
+    Parameters:
+    - data: DataFrame containing sentiment analysis data
+    - sentiment_counts: Series or dict containing sentiment distribution counts
+    - category_sentiment_data: DataFrame with category-wise sentiment distribution
+    - positive_ratios: DataFrame with company positive sentiment ratios (optional)
+    - improvement_report: String containing AI-generated improvement recommendations (optional)
+    - selected_companies: List of selected companies for comparison (optional)
+    """
+    try:
+        # Generate the PDF report
+        pdf_bytes = generate_dashboard_report(
+            data, 
+            sentiment_counts, 
+            category_sentiment_data, 
+            positive_ratios, 
+            improvement_report, 
+            selected_companies
+        )
+        
+        # Create download button for the report
+        st.download_button(
+            label="📊 Download Report",
+            data=pdf_bytes,
+            file_name=f"sentiment_analysis_report_{datetime.now().strftime('%Y%m%d_%H%M')}.pdf",
+            mime="application/pdf",
+            help="Download a comprehensive 2-page report with key insights from this dashboard"
+        )
+    except Exception as e:
+        st.error(f"Error generating report: {str(e)}")
+        st.exception(e)
 
 # Set page configuration
 st.set_page_config(
@@ -27,6 +374,42 @@ st.set_page_config(
     layout="wide",
     initial_sidebar_state="collapsed"
 )
+
+# ✅ Password Protection Page – Pine Labs Style
+if "password_correct" not in st.session_state:
+    st.session_state["password_correct"] = False
+
+if not st.session_state["password_correct"]:
+    # Show Pine Labs logo
+    st.markdown("<div style='padding-top: 60px;'></div>", unsafe_allow_html=True)
+    col1, col2, col3 = st.columns([2, 2, 2])
+    with col2:
+        try:
+            st.image("pinelabs_3.png", width=160)
+        except:
+            st.markdown("<h2 style='text-align:center;color:#345c49;'>Pine Labs</h2>", unsafe_allow_html=True)
+
+    # Show instruction
+    st.markdown("""
+    <div style='text-align:center; color:#345c49; font-size: 1.3rem; font-weight: 600; margin-top: 20px;'>
+        🔐 Enter Password to Access the Application
+    </div>
+    """, unsafe_allow_html=True)
+
+    # Password box
+    col1, col2, col3 = st.columns([2, 1, 2])
+    with col2:
+        password = st.text_input("", type="password", placeholder="Enter password", key="password_input")
+        login = st.button("ENTER")
+
+    if login:
+        if password == st.secrets["auth"]["password"]:
+            st.session_state["password_correct"] = True
+            st.rerun()
+        else:
+            st.error("❌ Incorrect Password. Please try again.")
+
+    st.stop()  # Prevent rest of app from showing
 
 # Custom CSS with improved styling
 st.markdown("""
@@ -519,7 +902,7 @@ def main():
             - **Competitor Trend**: Comparative positive‑sentiment trend lines for all companies.
             """)
             # Create a top navigation bar
-        col1, col2, col3, col4 = st.columns([1, 3, 3, 1])
+        col1, col2, col3, col4, col5 = st.columns([1, 3, 2, 1, 1])
         with col1:
             if st.button("← Back", help="Return to the information page"):
                 st.session_state.page = 'info'
@@ -538,8 +921,50 @@ def main():
             if selected_company != st.session_state.selected_company:
                 st.session_state.selected_company = selected_company
                 st.rerun()
-                
+
         with col4:
+            data = st.session_state.data
+            if 'improvement_report' not in st.session_state:
+                st.session_state.improvement_report = None
+            
+            if 'positive_ratios' not in st.session_state:
+                st.session_state.positive_ratios = None
+            
+            if 'selected_companies' not in st.session_state:
+                st.session_state.selected_companies = None
+                
+            # Since sentiment counts is calculated early, we can get it directly
+            sentiment_counts = data['sentiment'].value_counts()
+            
+            # Category sentiment data preparation needs to match what you calculate later
+            category_sentiment = None
+            try:
+                # Try to calculate category sentiment similar to how it's done in the dashboard
+                if 'category' in data.columns:
+                    category_sentiment = data.groupby('category')['sentiment'].value_counts().unstack().fillna(0)
+                    category_sentiment['total'] = category_sentiment.sum(axis=1)
+                    
+                    # Calculate percentages
+                    for col in ['positive', 'negative', 'neutral']:
+                        if col in category_sentiment.columns:
+                            category_sentiment[f'{col}_percentage'] = (category_sentiment[col] / category_sentiment['total']) * 100
+                    
+                    # Sort by total and reset index
+                    category_sentiment = category_sentiment.sort_values(by='total', ascending=False).reset_index()
+            except Exception as e:
+                st.error(f"Error preparing category data for report: {str(e)}")
+                
+            # Now create the download button
+            add_report_download_button(
+                data, 
+                sentiment_counts, 
+                category_sentiment, 
+                st.session_state.positive_ratios, 
+                st.session_state.improvement_report, 
+                st.session_state.selected_companies
+            )
+
+        with col5:
             # Toggle view mode
             if st.button("Toggle View" + (" 📊" if st.session_state.view_mode == "cards" else " 🗃️"), 
                         help="Switch between card view and table view"):
@@ -1615,7 +2040,7 @@ def main():
                         default=available_companies[:3] if len(available_companies) >= 3 else available_companies,
                         help="Select companies to include in comparison"
                     )
-                
+                st.session_state.selected_companies = compare_companies
                 # Make sure we have at least one company selected
                 if len(compare_companies) > 0:
                     # Filter data for selected companies
@@ -1719,7 +2144,7 @@ def main():
                                 
                                 # Sort by positive percentage
                                 ratios_df = ratios_df.sort_values(by='positive_percentage', ascending=False)
-                                
+                                st.session_state.positive_ratios = ratios_df
                                 # Create horizontal bar chart
                                 fig = px.bar(
                                     ratios_df,
@@ -2081,7 +2506,8 @@ def main():
                                             if 'generate_improvement_report' in globals():
                                                 # Call generate_improvement_report function with negative comments
                                                 improvement_report = generate_improvement_report(negative_comments,groq_api_key)
-                                                
+                                                st.session_state.improvement_report = improvement_report
+
                                                 # Display the improvement report
                                                 st.markdown(f"""
                                                 <div style="background-color: #f5f5f5; padding: 20px; border-radius: 10px; margin-top: 20px;">
